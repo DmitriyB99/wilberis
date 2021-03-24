@@ -65,7 +65,6 @@ const getGoods = async function () {
 	return await result.json();
 };
 
-
 const createCard = function ({ label, name, img, description, id, price }) {
 	const card = document.createElement('div');
 	card.className = 'col-lg-3 col-sm-6';
