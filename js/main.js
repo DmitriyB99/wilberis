@@ -19,18 +19,39 @@ const showAcsessories = document.querySelectorAll('.show-acsessories');
 const showClothing = document.querySelectorAll('.show-clothing');
 const cartTableGoods = document.querySelector('.cart-table__goods');
 const cardTableTotal = document.querySelector('.card-table__total');
+const cartCount = document.querySelector('.cart-count');
+const btnDanger = document.querySelector('.btn-danger');
 
 
-const getGoods = async () => { 
-	const result = await fetch('db/db.json');
-	if (!result.ok) {
-		throw 'Ошибка' + result.status
-	} 
-	return await result.json();
+const checkGoods = () => {
+
+	const data = [];
+
+	return async () => { 
+		if (data.length) return data;
+		const result = await fetch('db/db.json');
+		if (!result.ok) {
+			throw 'Ошибка' + result.status
+		} 
+		data.push(...(await result.json()));
+		return data
+	};
 };
+const getGoods = checkGoods();
 
 const cart = {
 	cartGoods: [],
+	countQuantity() {		
+			cartCount.textContent = this.cartGoods.reduce((sum, item) => {
+				return sum + item.count
+			}, 0)
+		
+	},
+	clearCart() {
+		this.cartGoods.length = 0;
+		this.countQuantity();	
+		this.renderCard();
+	},
 	renderCard() {
 		cartTableGoods.textContent = '';
 		this.cartGoods.forEach(({ id, name, price, count }) => {
@@ -60,6 +81,7 @@ const cart = {
 	deleteGood(id) {
 		this.cartGoods = this.cartGoods.filter(item => id !== item.id);
 		this.renderCard();
+		this.countQuantity();
 	},
 	minusGood(id) {
 		for (const item of this.cartGoods) {
@@ -73,6 +95,7 @@ const cart = {
 			}
 		}
 		this.renderCard();
+		this.countQuantity();
 	},
 	plusGood(id) {
 		for (const item of this.cartGoods) {
@@ -82,6 +105,7 @@ const cart = {
 			}
 		}
 		this.renderCard();
+		this.countQuantity();
 	},
 	addCartGoods(id){
 		const goodItem = this.cartGoods.find(item => item.id === id);
@@ -97,14 +121,19 @@ const cart = {
 						price,
 						count: 1
 					});
+					this.countQuantity();
 				});
 		}
+		
 	},
 }
 
+btnDanger.addEventListener('click', () => {
+	cart.clearCart();
+})
+
 document.body.addEventListener('click', event => {
 	const addToCart = event.target.closest('.add-to-cart');
-	console.log(addToCart);
 
 	if (addToCart) {
 		cart.addCartGoods(addToCart.dataset.id)
@@ -247,4 +276,38 @@ showClothing.forEach(item => {
 		event.preventDefault();
 		filterCards('category', 'Clothing');
 	});
+});
+
+//server
+
+const modalForm = document.querySelector('.modal-form');
+
+const postData = dataUser => fetch('server.php', {
+	method: 'POST',
+	body: dataUser,
+});
+
+modalForm.addEventListener('submit', event => {
+	event.preventDefault();
+
+	const formData = new FormData(modalForm);
+	formData.append('cart',JSON.stringify(cart.cartGoods))
+
+	postData(formData)
+		.then(response => {
+			if (!response.ok) {
+				throw new Error(response.status)
+			}
+			alert('Ваш заказ успешно обработан');
+			console.log(response.statusText);
+		})
+		.catch(err => {
+			alert('К сожалению произошла ошибка, повторите позже');
+			console.error(err);
+		})
+		.finally(() => {
+			closeModal();
+			modalForm.reset();
+			cart.cartGoods.length = 0;
+		});
 });
